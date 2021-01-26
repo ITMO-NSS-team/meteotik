@@ -1,7 +1,7 @@
 import os
 import datetime
 import calendar
-from abc import abstractmethod
+from abc import abstractmethod, ABC, ABCMeta
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from matplotlib import cm
 import plotly.express as px
 
 from netCDF4 import Dataset
-
 
 
 class ReanalysisProcessor:
@@ -177,6 +176,8 @@ class ERA5Processor(ReanalysisProcessor):
         plt.yticks([0, len(lat_vector)-1],
                    [lat_vector[0], lat_vector[-1]],
                    rotation='horizontal')
+        plt.ylabel('Latitude')
+        plt.xlabel('Longitude')
         plt.show()
 
         netcdf_file.close()
@@ -213,7 +214,7 @@ class ERA5Processor(ReanalysisProcessor):
         :param new_time_step: new time step (ignore if change_time_step=False)
 
         :return: pandas dataframe with "U_reanalysis", "V_reanalysis",
-        "Date" columns
+        "Velocity_reanalysis", "Date" columns
         """
 
         all_us = []
@@ -267,29 +268,31 @@ class ERA5Processor(ReanalysisProcessor):
             us = u_arr[:, lat_index, lon_index]
             vs = v_arr[:, lat_index, lon_index]
 
-            if change_time_step == True:
-                # Changing the time step to a new discreteness
-                u_series = pd.Series(us, index=date_range)
-                v_series = pd.Series(vs, index=date_range)
-
-                u_series = u_series.resample(new_time_step).mean()
-                v_series = v_series.resample(new_time_step).mean()
-
-                us = u_series
-                vs = v_series
-                date_range = u_series.index
-            else:
-                pass
-
             all_us.extend(list(us))
             all_vs.extend(list(vs))
             dates.extend(list(date_range))
 
             netcdf_file.close()
 
-        dataframe = pd.DataFrame({'U_reanalysis': all_us,
-                                  'V_reanalysis': all_vs,
-                                  'Date': dates})
+        if change_time_step == True:
+            # Changing the time step to a new discreteness
+            u_series = pd.Series(all_us, index=dates)
+            v_series = pd.Series(all_vs, index=dates)
+
+            u_series = u_series.resample(new_time_step).mean()
+            v_series = v_series.resample(new_time_step).mean()
+
+            dataframe = pd.DataFrame({'U_reanalysis': u_series,
+                                      'V_reanalysis': v_series,
+                                      'Date': u_series.index})
+        else:
+            dataframe = pd.DataFrame({'U_reanalysis': all_us,
+                                      'V_reanalysis': all_vs,
+                                      'Date': dates})
+
+        # Calculate velocity of the wind
+        vel = uv_to_wind(dataframe['U_reanalysis'], dataframe['V_reanalysis'])
+        dataframe['Velocity_reanalysis'] = vel
         return dataframe
 
 
@@ -313,3 +316,19 @@ class CFS2Processor(ReanalysisProcessor):
 
         self._print_borders(longitude_name=self.longitude_name,
                             latitude_name=self.latitude_name)
+
+
+def uv_to_wind(u_arr, v_arr):
+    """
+    The function allows calculating the wind speed from the U and V components
+
+    :param u_arr: array with U component
+    :param v_arr: array with V component
+
+    :return : array with wind velocity
+    """
+
+    u_arr = np.array(u_arr)
+    v_arr = np.array(v_arr)
+    velocity = np.sqrt(np.power(u_arr, 2) + np.power(v_arr, 2))
+    return velocity
