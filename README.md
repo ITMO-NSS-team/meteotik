@@ -21,5 +21,5 @@ This module allows comparing time series with meteoparameters obtained from ERA5
 In progress
 
 ## Examples 
-* [ERA5 comparison with weather station example](https://github.com/ITMO-NSS-team/meteotik/tree/main/examples/ERA5_example.ipnb) 
+* [ERA5 comparison with weather station example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/ERA5_example.ipynb) 
 (in russian)
