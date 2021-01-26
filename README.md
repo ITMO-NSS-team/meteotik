@@ -8,10 +8,11 @@ Module for processing reanalysis grids and comparative analysis of time series w
     'pandas>=1.1.0',
     'netcdf4==1.5.4',
     'numpy',
+    'seaborn',
+    'scipy',
     'matplotlib',
     'sklearn',
-    'seaborn ',
-    'scipy'
+    'plotly'
     
 ## Reason to use
 This module allows comparing time series with meteoparameters obtained from ERA5 or CFS2 reanalysis with data from weather stations. With this module you can generate reports, make visualizations, calculate the wind components U and W from the speed and direction (and perform reverse operations also) and much more.
