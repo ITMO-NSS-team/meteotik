@@ -1,0 +1,8 @@
+pandas>=1.1.0
+netcdf4==1.5.4
+numpy
+seaborn
+scipy
+matplotlib
+sklearn
+plotly
