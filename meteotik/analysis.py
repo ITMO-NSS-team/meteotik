@@ -80,7 +80,8 @@ def bias_calculate(real, predict):
 
 def print_statistics(dataframe_left: pd.DataFrame,
                      dataframe_right: pd.DataFrame,
-                     columns_for_compare: dict):
+                     columns_for_compare: dict,
+                     check_peaks: bool = False):
     """
     The function displays some metrics for the compared dataframes
 
@@ -89,6 +90,8 @@ def print_statistics(dataframe_left: pd.DataFrame,
     :param columns_for_compare: dictionary where keys are column names in
     dataframe_left and values are column names in dataframe_right, which should be
     compared
+    :param check_peaks: is there a need to calculate metrics for peak values
+    (> 75 percentile)
     """
 
     # Get all keys (column names) for compare
@@ -107,7 +110,25 @@ def print_statistics(dataframe_left: pd.DataFrame,
         print(f'Bias for {column_left_name} vs {column_right_name}: {bias:.2f}')
         print(f'MAE for {column_left_name} vs {column_right_name}: {mae:.2f}')
         print(f'Pearson correlation coefficient for {column_left_name} vs '
-              f'{column_right_name}: {korr[0]:.2f}\n')
+              f'{column_right_name}: {korr[0]:.2f}')
+
+        if check_peaks is True:
+            # Get 75 percentile
+            q75 = np.quantile(column_left, 0.75)
+            ids = np.argwhere(column_left > q75)
+
+            peak_left = np.ravel(column_left[ids])
+            peak_right = np.ravel(column_right[ids])
+
+            bias_peak = bias_calculate(peak_left, peak_right)
+            mae_peak = mean_absolute_error(peak_left, peak_right)
+            korr_peak = stats.pearsonr(peak_left, peak_right)
+
+            print(f'(Peak) Bias for {column_left_name} vs {column_right_name}: {bias_peak:.2f}')
+            print(f'(Peak) MAE for {column_left_name} vs {column_right_name}: {mae_peak:.2f}')
+            print(f'(Peak) Pearson correlation coefficient for {column_left_name} vs '
+                  f'{column_right_name}: {korr_peak[0]:.2f}')
+        print('\n')
 
 
 def make_visual_comparison(dataframe_left: pd.DataFrame,
@@ -157,7 +178,7 @@ def make_visual_comparison(dataframe_left: pd.DataFrame,
         plt.xlim(x_min_date, x_max_date)
         plt.show()
 
-        # Разница между действительным (метеостанция) и предсказанным (реанализ)
+        # Calculate errors and plot them
         diff_arr = column_left - column_right
         plt.scatter(dataframe_left['Date'], diff_arr, alpha=0.8, c='green')
         plt.ylabel(f'{column_left_name} vs {column_right_name}', fontsize=12)
@@ -175,3 +196,147 @@ def make_visual_comparison(dataframe_left: pd.DataFrame,
             plt.xlabel(f'{dataframe_labels[0]} - {dataframe_labels[1]}', fontsize=15)
             plt.ylabel('Probability density function', fontsize=15)
             plt.show()
+
+        print('\n')
+
+
+def qq_comparison(dataframe_left: pd.DataFrame,
+                  dataframe_right: pd.DataFrame,
+                  columns_for_compare: dict,
+                  dataframe_labels: list = ('Left Dataframe', 'Right Dataframe'),
+                  check_peaks: bool = False):
+    """
+    The function allows pairwise matching of values in the form of quantile biplots
+
+    :param dataframe_left: (meteo stations) dataframe with columns for comparison
+    :param dataframe_right: (reanalysis) dataframe with columns for comparison
+    :param columns_for_compare: dictionary where keys are column names in
+    dataframe_left and values are column names in dataframe_right, which should be
+    compared
+    :param dataframe_labels: labels for dataframes
+    :param check_peaks: is there a need to calculate metrics for peak values
+    (> 75 percentile)
+    """
+
+    # Get all keys (column names) for compare
+    column_left_names = list(columns_for_compare.keys())
+    for column_left_name in column_left_names:
+        column_right_name = columns_for_compare.get(column_left_name)
+
+        column_left = np.array(dataframe_left[column_left_name])
+        column_right = np.array(dataframe_right[column_right_name])
+
+        title = ''.join((column_left_name, ' vs ', column_right_name))
+        _plot_qq(array_x=column_right, array_y=column_left,
+                 name=title, x_label=dataframe_labels[1],
+                 y_label=dataframe_labels[0])
+
+        if check_peaks is True:
+            # Get 75 percentile
+            q75 = np.quantile(column_left, 0.75)
+            ids = np.argwhere(column_left > q75)
+
+            peak_left = np.ravel(column_left[ids])
+            peak_right = np.ravel(column_right[ids])
+            title = ''.join(('(Peak) ', title))
+            _plot_qq(array_x=peak_right, array_y=peak_left,
+                     name=title, x_label=dataframe_labels[1],
+                     y_label=dataframe_labels[0])
+
+
+def _plot_qq(array_x, array_y, name, x_label, y_label) -> None:
+    """
+    A function to draw the quantile biplots
+
+    :param array_x: array which will be on x-axis
+    :param array_y: array which will be on y-axis
+    :param name: title of the plot
+    :param x_label: label for x-axis
+    :param y_label: label for y-axis
+    """
+
+    percs = np.arange(0, 100)
+    qn_x = np.percentile(array_x, percs)
+    qn_y = np.percentile(array_y, percs)
+
+    # Creating a quantile biplot
+    plt.figure(figsize=(8, 8))
+
+    min_qn = np.min([qn_x.min(), qn_y.min()])
+    max_qn = np.max([qn_x.max(), qn_y.max()])
+    x = np.linspace(min_qn, max_qn)
+
+    plt.plot(qn_x, qn_y, ls="", marker="o", markersize=6)
+    plt.plot(x, x, color="k", ls="--")
+    plt.xlabel(x_label, fontsize=14)
+    plt.ylabel(y_label, fontsize=14)
+    plt.grid()
+    plt.title(name, fontsize=14)
+    plt.show()
+
+
+def make_report(dataframe_left: pd.DataFrame,
+                dataframe_right: pd.DataFrame,
+                columns_for_compare: dict,
+                check_peaks: bool = False):
+    """
+    The function generate report dataframe with all necessary information
+
+    :param dataframe_left: (meteo stations) dataframe with columns for comparison
+    :param dataframe_right: (reanalysis) dataframe with columns for comparison
+    :param columns_for_compare: dictionary where keys are column names in
+    dataframe_left and values are column names in dataframe_right, which should be
+    compared
+    :param check_peaks: is there a need to calculate metrics for peak values
+    (> 75 percentile)
+
+    :return : report dataframe
+    """
+
+    # Get all keys (column names) for compare
+    column_left_names = list(columns_for_compare.keys())
+
+    variables = []
+    biases = []
+    maes = []
+    korrs = []
+    for column_left_name in column_left_names:
+        column_right_name = columns_for_compare.get(column_left_name)
+
+        column_left = np.array(dataframe_left[column_left_name])
+        column_right = np.array(dataframe_right[column_right_name])
+
+        bias = bias_calculate(column_left, column_right)
+        mae = mean_absolute_error(column_left, column_right)
+        korr = stats.pearsonr(column_left, column_right)
+
+        # Forming var column
+        variable_name = ''.join((column_left_name, ' vs ', column_right_name))
+        variables.append(variable_name)
+        biases.append(bias)
+        maes.append(mae)
+        korrs.append(korr[0])
+
+        if check_peaks is True:
+            # Get 75 percentile
+            q75 = np.quantile(column_left, 0.75)
+            ids = np.argwhere(column_left > q75)
+
+            peak_left = np.ravel(column_left[ids])
+            peak_right = np.ravel(column_right[ids])
+
+            bias_peak = bias_calculate(peak_left, peak_right)
+            mae_peak = mean_absolute_error(peak_left, peak_right)
+            korr_peak = stats.pearsonr(peak_left, peak_right)
+
+            variable_name = ''.join(('(Peak) ', variable_name))
+            variables.append(variable_name)
+            biases.append(bias_peak)
+            maes.append(mae_peak)
+            korrs.append(korr_peak[0])
+
+    df = pd.DataFrame({'Variables': variables,
+                       'Bias': biases,
+                       'MAE': maes,
+                       'Correlation': korrs})
+    return df

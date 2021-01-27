@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from matplotlib import pyplot as plt
 
 
 class MeteoStations:
@@ -32,6 +34,79 @@ class MeteoStations:
         u_arr = (-1 * vel_arr) * direction_sin
         v_arr = (-1 * vel_arr) * direction_cos
         return u_arr, v_arr
+
+    def plot_wind_rose(self, dataframe, vel_col: str, direction_col: str):
+        """
+        Function for drawing the wind rose plot where color shows the wind velocity
+
+        :param dataframe: dataframe with data for plot
+        :param vel_col: name of column with velocity of the wind
+        :param direction_col: name of column with direction of the wind
+        """
+
+        # Carry out the sampling on the points (from (-1 to 0] - denotes calm)
+        ticks = np.array([-1, 0, 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 361])
+        dataframe = dataframe.groupby(pd.cut(dataframe[direction_col], ticks)).agg({direction_col: 'count',
+                                                                                    vel_col: 'mean'})
+        dataframe = dataframe.rename(columns={direction_col: " "})
+        dataframe = dataframe.reset_index()
+        # Number of observations in total
+        all_values = dataframe[' '].sum()
+
+        # The values from the first row refer to calm
+        calm_amount = dataframe[' '][0]
+        # Now we remove them from the calculations
+        dataframe = dataframe.drop(dataframe.index[0])
+
+        # Let's combine the parts in the northern direction
+        dataframe['Direction'] = [0, 45, 90, 135, 180, 225, 270, 315, 0]
+        dataframe = dataframe.groupby(dataframe['Direction']).agg({' ': 'sum',
+                                                                   vel_col: 'mean'})
+        dataframe = dataframe.reset_index()
+        dataframe['The percentage of cases with these directions of the wind'] = \
+            self._convert_to_polar(dataframe['Direction'])
+
+        # Let's calculate the percentage of directions by points
+        dataframe[' '] = (dataframe[' '] / all_values) * 100
+        calm_amount_scaled = (calm_amount / all_values) * 100
+        dataframe = dataframe.round({vel_col: 2})
+
+        # Inverting the wind direction, because the graph is displayed in an inverted form
+        dataframe['The percentage of cases with these directions of the wind'] = self._convert_to_polar(np.array([0, 315, 270, 225, 180, 135, 90, 45]))
+        with sns.axes_style("whitegrid"):
+            days = np.array(dataframe['The percentage of cases with these directions of the wind'])
+            d = np.array(dataframe[" "])
+
+            angle_ticks = self._convert_to_polar(np.array([0, 315, 270, 225, 180, 135, 90, 45]))
+
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='polar')
+            ax.plot(days, d, c='black', alpha=0.2)
+            ax.plot([days[-1], days[0]], [d[-1], d[0]], c='black', alpha=0.2)
+            am = ax.scatter(
+                dataframe['The percentage of cases with these directions of the wind'], d,
+                c=dataframe[vel_col], cmap='coolwarm', s=120)
+            plt.xticks(angle_ticks,
+                       ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'])
+            plt.xlabel('The percentage of cases with these directions of the wind')
+            ax.set_theta_zero_location('N')
+            fig.colorbar(am)
+
+        print(f'Percentage of observations with calm {calm_amount_scaled:.1f}%')
+
+    @staticmethod
+    def _convert_to_polar(arr):
+        """
+        The function of normalizing the array scale for the range from 0 to 2*Pi
+
+        :param : array to process
+        """
+
+        # Normalize to the range from 0 to 1
+        arr = (arr / 360)
+        # And now transform to the polar coordinates
+        arr = arr * (2 * np.pi)
+        return arr
 
 
 class Rp5Station(MeteoStations):
