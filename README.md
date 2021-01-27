@@ -25,5 +25,7 @@ reports, make visualizations, calculate the wind components U and V from the vel
 In progress
 
 ## Examples 
-* [ERA5 comparison with weather station example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/ERA5_example.ipynb) 
+* [ERA5 comparison with weather station (Roshydromet) example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/ERA5_example.ipynb) 
+(in russian)
+* [CFS2 comparison with weather station (rp5) example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/CFS2_example.ipynb) 
 (in russian)

@@ -260,7 +260,7 @@ def _plot_qq(array_x, array_y, name, x_label, y_label) -> None:
     qn_y = np.percentile(array_y, percs)
 
     # Creating a quantile biplot
-    plt.figure(figsize=(8, 8))
+    plt.figure()
 
     min_qn = np.min([qn_x.min(), qn_y.min()])
     max_qn = np.max([qn_x.max(), qn_y.max()])

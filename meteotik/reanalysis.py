@@ -47,12 +47,15 @@ class ReanalysisProcessor:
         netcdf_file.close()
 
     @abstractmethod
-    def field_visualisation(self, variable, file_to_vis=None) -> None:
+    def field_visualisation(self, variable, file_to_vis=None,
+                            coordinates=None) -> None:
         """
         Method for visualizing the reanalysis field
 
         :param variable: name of the variable to plot
         :param file_to_vis: the name of the file that you want to visualise
+        :param coordinates: coordinates of the point from which you want to form a
+        time series
         """
         raise NotImplementedError()
 
@@ -128,9 +131,24 @@ class ReanalysisProcessor:
         day = min(source_date.day, calendar.monthrange(year, month)[1])
         return datetime.date(year, month, day)
 
+    @staticmethod
+    def _is_null_values_any(df):
+        """ Check if the dataframe contains Nan values """
+        return df.isnull().values.any()
+
+    @staticmethod
+    def _interpolation(df):
+        """
+        Make linear interpolation for all columns in dataframe except 'Date'
+        """
+
+        for column in ["U_reanalysis", "V_reanalysis"]:
+            df[column] = df[column].interpolate(method='linear')
+        return df
+
 
 class ERA5Processor(ReanalysisProcessor):
-    """ Class for processing ERA5 monthly netcdf files """
+    """ Class for processing ERA5 netcdf files """
 
     def __init__(self, folder, files=None):
         super().__init__(folder, files)
@@ -149,13 +167,14 @@ class ERA5Processor(ReanalysisProcessor):
         self._print_borders(longitude_name=self.longitude_name,
                             latitude_name=self.latitude_name)
 
-    def field_visualisation(self, variable, file_to_vis=None):
+    def field_visualisation(self, variable, file_to_vis=None, coordinates=None):
         """ Method for visualizing the reanalysis field """
 
         if file_to_vis is None:
             file_to_vis = self.files[0]
         else:
             pass
+
 
         file_path = os.path.join(self.folder, file_to_vis)
         netcdf_file = Dataset(file_path)
@@ -178,6 +197,14 @@ class ERA5Processor(ReanalysisProcessor):
                    rotation='horizontal')
         plt.ylabel('Latitude')
         plt.xlabel('Longitude')
+
+        if coordinates is None:
+            pass
+        else:
+            lat_index, lon_index = self._siutable_ids(lat_vector,
+                                                      lon_vector,
+                                                      coordinates)
+            plt.scatter(lon_index, lat_index, c='red', s=100)
         plt.show()
 
         netcdf_file.close()
@@ -274,7 +301,7 @@ class ERA5Processor(ReanalysisProcessor):
 
             netcdf_file.close()
 
-        if change_time_step == True:
+        if change_time_step:
             # Changing the time step to a new discreteness
             u_series = pd.Series(all_us, index=dates)
             v_series = pd.Series(all_vs, index=dates)
@@ -285,6 +312,13 @@ class ERA5Processor(ReanalysisProcessor):
             dataframe = pd.DataFrame({'U_reanalysis': u_series,
                                       'V_reanalysis': v_series,
                                       'Date': u_series.index})
+
+            check_nan = self._is_null_values_any(dataframe)
+            if check_nan:
+                # Need interpolation
+                dataframe = self._interpolation(dataframe)
+            dataframe.reset_index(inplace=True)
+            dataframe.drop(columns=['index'], inplace=True)
         else:
             dataframe = pd.DataFrame({'U_reanalysis': all_us,
                                       'V_reanalysis': all_vs,
@@ -297,7 +331,7 @@ class ERA5Processor(ReanalysisProcessor):
 
 
 class CFS2Processor(ReanalysisProcessor):
-    """ Class for processing CFS2 monthly netcdf files """
+    """ Class for processing CFS2 netcdf files """
 
     def __init__(self, folder, files=None):
         super().__init__(folder, files)
@@ -306,7 +340,7 @@ class CFS2Processor(ReanalysisProcessor):
         self.time_var_name = 'time'
         self.u10_name = '10u'
         self.v10_name = '10v'
-        self.longitude_name = 'long'
+        self.longitude_name = 'lon'
         self.latitude_name = 'lat'
 
     def show_spatial_coverage(self):
@@ -316,6 +350,150 @@ class CFS2Processor(ReanalysisProcessor):
 
         self._print_borders(longitude_name=self.longitude_name,
                             latitude_name=self.latitude_name)
+
+    def field_visualisation(self, variable, file_to_vis=None, coordinates=None):
+        """ Method for visualizing the reanalysis field """
+
+        if file_to_vis is None:
+            file_to_vis = self.files[0]
+        else:
+            pass
+
+        file_path = os.path.join(self.folder, file_to_vis)
+        netcdf_file = Dataset(file_path)
+
+        lon_vector = np.array(netcdf_file.variables[self.longitude_name])
+        lat_vector = np.array(netcdf_file.variables[self.latitude_name])
+
+        variable_arr = np.array(netcdf_file.variables[variable])
+        variable_arr = variable_arr[0, 0, :, :]
+
+        cmap = cm.get_cmap('coolwarm')
+        plt.imshow(variable_arr, cmap=cmap)
+        plt.colorbar()
+        plt.title(variable, fontsize=14)
+        plt.xticks([0, len(lon_vector)-1],
+                   [lon_vector[0], lon_vector[-1]],
+                   rotation='vertical')
+        plt.yticks([0, len(lat_vector)-1],
+                   [lat_vector[0], lat_vector[-1]],
+                   rotation='horizontal')
+        plt.ylabel('Latitude')
+        plt.xlabel('Longitude')
+
+        if coordinates is None:
+            pass
+        else:
+            lat_index, lon_index = self._siutable_ids(lat_vector,
+                                                      lon_vector,
+                                                      coordinates)
+            plt.scatter(lon_index, lat_index, c='red', s=100)
+        plt.show()
+
+        netcdf_file.close()
+
+    def prepare_time_series(self,
+                            coordinates,
+                            change_time_step=False,
+                            new_time_step='D'):
+        """
+        This method allows getting a time series from a point with the
+        specified coordinates
+
+        :param coordinates: coordinates of the point from which you want to form a
+        time series
+        :param change_time_step: is there a need to change the time step
+        :param new_time_step: new time step (ignore if change_time_step=False)
+
+        :return: pandas dataframe with "U_reanalysis", "V_reanalysis",
+        "Velocity_reanalysis", "Date" columns
+        """
+
+        all_us = []
+        all_vs = []
+        dates = []
+        for index, file in enumerate(self.files):
+            print(f'Processing... {file}')
+            file_path = os.path.join(self.folder, file)
+            netcdf_file = Dataset(file_path)
+
+            longitude = netcdf_file.variables[self.longitude_name]
+            latitude = netcdf_file.variables[self.latitude_name]
+
+            # Get arrays
+            latitude = np.array(latitude)
+            longitude = np.array(longitude)
+
+            time = netcdf_file.variables[self.time_var_name]
+            u10 = netcdf_file.variables[self.u10_name]
+            v10 = netcdf_file.variables[self.v10_name]
+
+            # Determine start date
+            time_units = str(time.units)
+            splitted = time_units.split('since ')
+            start_date = splitted[-1]
+            # Convert to datetime format
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+            hours = np.array(time)
+
+            delta = datetime.timedelta(hours=int(max(hours)))
+            end_date = start_date + delta
+
+            # Time step for array
+            step = int(hours[1] - hours[0])
+            freq = ''.join((str(step), 'H'))
+
+            # Generate time ids
+            date_range = pd.date_range(start=start_date, end=end_date, freq=freq)
+
+            # Determining the indexes of the pixel
+            if index == 0:
+                # It will be enough to determine the pixel indexes only once
+                lat_index, lon_index = self._siutable_ids(latitude,
+                                                          longitude,
+                                                          coordinates)
+
+            u_arr = np.array(u10)
+            v_arr = np.array(v10)
+
+            # Preparing time series
+            us = u_arr[:, 0, lat_index, lon_index]
+            vs = v_arr[:, 0, lat_index, lon_index]
+
+            all_us.extend(list(us))
+            all_vs.extend(list(vs))
+            dates.extend(list(date_range))
+
+            netcdf_file.close()
+
+        if change_time_step:
+            # Changing the time step to a new discreteness
+            u_series = pd.Series(all_us, index=dates)
+            v_series = pd.Series(all_vs, index=dates)
+
+            u_series = u_series.resample(new_time_step).mean()
+            v_series = v_series.resample(new_time_step).mean()
+
+            dataframe = pd.DataFrame({'U_reanalysis': u_series,
+                                      'V_reanalysis': v_series,
+                                      'Date': u_series.index})
+
+            check_nan = self._is_null_values_any(dataframe)
+            if check_nan:
+                # Need interpolation
+                dataframe = self._interpolation(dataframe)
+            dataframe.reset_index(inplace=True)
+            dataframe.drop(columns=['index'], inplace=True)
+        else:
+            dataframe = pd.DataFrame({'U_reanalysis': all_us,
+                                      'V_reanalysis': all_vs,
+                                      'Date': dates})
+
+        # Calculate velocity of the wind
+        vel = uv_to_wind(dataframe['U_reanalysis'],
+                         dataframe['V_reanalysis'])
+        dataframe['Velocity_reanalysis'] = vel
+        return dataframe
 
 
 def uv_to_wind(u_arr, v_arr):
