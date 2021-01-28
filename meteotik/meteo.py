@@ -1,8 +1,8 @@
-import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
+import datetime
 
 
 class MeteoStations:
@@ -93,6 +93,32 @@ class MeteoStations:
             fig.colorbar(am)
 
         print(f'Percentage of observations with calm {calm_amount_scaled:.1f}%')
+
+    def time_shift(self, dataframe, date_col, shift, add=True):
+        """
+        The method allows adding or subtracting a few hours to get a time shift
+
+        :param dataframe: dataframe tp process
+        :param date_col: name of column with datetime
+        :param shift: hours for shifting
+        :param add: is there a need to add hours or to subtract them
+        :return: pandas series with shifted times
+        """
+        copy_df = dataframe.copy()
+
+        delta = datetime.timedelta(hours=int(shift))
+        new_times = []
+        for i_time in dataframe[date_col]:
+            if add:
+                new_time = i_time + delta
+            else:
+                new_time = i_time - delta
+            new_times.append(new_time)
+
+        copy_df[date_col] = new_times
+        copy_df[date_col] = pd.to_datetime(copy_df[date_col])
+
+        return copy_df[date_col]
 
     @staticmethod
     def _convert_to_polar(arr):

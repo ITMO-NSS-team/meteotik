@@ -22,7 +22,7 @@ reports, make visualizations, calculate the wind components U and V from the vel
  and direction (and perform reverse operations also) and much more.
 
 ## Documentation
-In progress
+All necessary documentation you can find in docstring or can use examples.
 
 ## Examples 
 * [ERA5 comparison with weather station (Roshydromet) example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/ERA5_example.ipynb) 
