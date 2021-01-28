@@ -189,9 +189,10 @@ def make_visual_comparison(dataframe_left: pd.DataFrame,
         plt.show()
 
         with sns.axes_style("whitegrid"):
+            k = int(len(diff_arr)**0.5)
             sns.kdeplot(np.ravel(diff_arr), shade=False, color="green",
                         kernel='gau', alpha=0.8, linewidth=3)
-            plt.hist(np.ravel(diff_arr), 70, density=True, color='green',
+            plt.hist(np.ravel(diff_arr), k, density=True, color='green',
                      alpha=0.2)
             plt.xlabel(f'{dataframe_labels[0]} - {dataframe_labels[1]}', fontsize=15)
             plt.ylabel('Probability density function', fontsize=15)
