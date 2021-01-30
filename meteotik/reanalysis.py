@@ -150,15 +150,16 @@ class ReanalysisProcessor:
 class ERA5Processor(ReanalysisProcessor):
     """ Class for processing ERA5 netcdf files """
 
-    def __init__(self, folder, files=None, u10_name='u10', v10_name='v10'):
+    def __init__(self, folder, files=None, u10_name='u10', v10_name='v10',
+                 longitude_name='longitude', latitude_name='latitude'):
         super().__init__(folder, files)
 
         # Variables to process data in reanalysis
         self.time_var_name = 'time'
         self.u10_name = u10_name
         self.v10_name = v10_name
-        self.longitude_name = 'longitude'
-        self.latitude_name = 'latitude'
+        self.longitude_name = longitude_name
+        self.latitude_name = latitude_name
 
     def show_spatial_coverage(self):
         """
@@ -333,15 +334,16 @@ class ERA5Processor(ReanalysisProcessor):
 class CFS2Processor(ReanalysisProcessor):
     """ Class for processing CFS2 netcdf files """
 
-    def __init__(self, folder, files=None, u10_name='10u', v10_name='10v'):
+    def __init__(self, folder, files=None, u10_name='10u', v10_name='10v',
+                 longitude_name='lon', latitude_name='lat'):
         super().__init__(folder, files)
 
         # Variables to process data in reanalysis
         self.time_var_name = 'time'
         self.u10_name = u10_name
         self.v10_name = v10_name
-        self.longitude_name = 'lon'
-        self.latitude_name = 'lat'
+        self.longitude_name = longitude_name
+        self.latitude_name = latitude_name
 
     def show_spatial_coverage(self):
         """
