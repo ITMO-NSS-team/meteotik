@@ -1,7 +1,8 @@
 import os
 import datetime
 import calendar
-from abc import abstractmethod, ABC, ABCMeta
+from abc import abstractmethod
+import math
 
 import numpy as np
 import pandas as pd
@@ -242,7 +243,7 @@ class ERA5Processor(ReanalysisProcessor):
         :param new_time_step: new time step (ignore if change_time_step=False)
 
         :return: pandas dataframe with "U_reanalysis", "V_reanalysis",
-        "Velocity_reanalysis", "Date" columns
+        "Velocity_reanalysis", "Direction_reanalysis", "Date" columns
         """
 
         all_us = []
@@ -326,8 +327,14 @@ class ERA5Processor(ReanalysisProcessor):
                                       'Date': dates})
 
         # Calculate velocity of the wind
-        vel = uv_to_wind(dataframe['U_reanalysis'], dataframe['V_reanalysis'])
+        vel = uv_to_wind(dataframe['U_reanalysis'],
+                         dataframe['V_reanalysis'])
+        # And the direction
+        direction = uv_to_direction(dataframe['U_reanalysis'],
+                                    dataframe['V_reanalysis'])
+
         dataframe['Velocity_reanalysis'] = vel
+        dataframe['Direction_reanalysis'] = direction
         return dataframe
 
 
@@ -408,7 +415,7 @@ class CFS2Processor(ReanalysisProcessor):
         :param new_time_step: new time step (ignore if change_time_step=False)
 
         :return: pandas dataframe with "U_reanalysis", "V_reanalysis",
-        "Velocity_reanalysis", "Date" columns
+        "Velocity_reanalysis", "Direction_reanalysis", "Date" columns
         """
 
         all_us = []
@@ -494,7 +501,13 @@ class CFS2Processor(ReanalysisProcessor):
         # Calculate velocity of the wind
         vel = uv_to_wind(dataframe['U_reanalysis'],
                          dataframe['V_reanalysis'])
+
+        # And the direction
+        direction = uv_to_direction(dataframe['U_reanalysis'],
+                                    dataframe['V_reanalysis'])
+
         dataframe['Velocity_reanalysis'] = vel
+        dataframe['Direction_reanalysis'] = direction
         return dataframe
 
 
@@ -512,3 +525,19 @@ def uv_to_wind(u_arr, v_arr):
     v_arr = np.array(v_arr)
     velocity = np.sqrt(np.power(u_arr, 2) + np.power(v_arr, 2))
     return velocity
+
+
+def uv_to_direction(u_arr, v_arr):
+    """
+    The function allows calculating the wind directions from the U and V components
+
+    :param u_arr: array with U component
+    :param v_arr: array with V component
+
+    :return : array with wind directions
+    """
+
+    u_arr = np.array(u_arr)
+    v_arr = np.array(v_arr)
+    direction = (np.arctan2(u_arr, v_arr)*180/math.pi)+180
+    return direction
