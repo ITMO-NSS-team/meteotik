@@ -342,6 +342,56 @@ def make_report(dataframe_left: pd.DataFrame,
     return df
 
 
+def make_report_by_months(dataframe_left: pd.DataFrame,
+                          dataframe_right: pd.DataFrame,
+                          columns_for_compare: dict,
+                          date_col: str = 'Date',
+                          check_peaks: bool = False):
+    """
+    The function generate report dataframe with all necessary information by months
+
+    :param dataframe_left: (meteo stations) dataframe with columns for comparison
+    :param dataframe_right: (reanalysis) dataframe with columns for comparison
+    :param columns_for_compare: dictionary where keys are column names in
+    dataframe_left and values are column names in dataframe_right, which should be
+    compared
+    :param date_col: name of datetime column
+    :param check_peaks: is there a need to calculate metrics for peak values
+    (> 75 percentile)
+
+    :return : report dataframe, where metrics were calculated by months
+    """
+
+    # Aggregate data per month
+    dataframe_left['month'] = dataframe_left[date_col].dt.month
+    dataframe_right['month'] = dataframe_right[date_col].dt.month
+
+    month_list = list(dataframe_left['month'].unique())
+    month_list.sort()
+    for index, month in enumerate(month_list):
+        month_df_left = dataframe_left[dataframe_left['month'] == month]
+        month_df_right = dataframe_right[dataframe_right['month'] == month]
+
+        # Make report for this month
+        report_month = make_report(dataframe_left=month_df_left,
+                                   dataframe_right=month_df_right,
+                                   columns_for_compare=columns_for_compare,
+                                   check_peaks=check_peaks)
+
+        months_column = [month]*len(report_month)
+        report_month['Month'] = months_column
+
+        if index == 0:
+            final_report = report_month
+        else:
+            frames = [final_report, report_month]
+            final_report = pd.concat(frames)
+
+    final_report = final_report.reset_index()
+
+    return final_report
+
+
 def _convert_to_polar(arr):
     """
     The function of normalizing the array scale for the range from 0 to 2*Pi
