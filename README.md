@@ -14,7 +14,10 @@ time series with meteorological parameters
     'matplotlib',
     'sklearn',
     'plotly'
-    
+
+## Install module
+    pip install git+https://github.com/ITMO-NSS-team/meteotik
+
 ## Reason to use
 This module allows comparing time series with meteoparameters obtained from ERA5 or 
 CFS2 reanalysis with data from weather stations. With this module you can generate 
