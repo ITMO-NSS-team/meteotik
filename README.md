@@ -27,6 +27,17 @@ reports, make visualizations, calculate the wind components U and V from the vel
 ## Documentation
 All necessary documentation you can find in docstring or in examples.
 
+#### Supported reanalysis sources
+
+☑️ ERA5 - ERA5Processor class
+☑️ CFS2 - CFS2Processor class
+☑️ BCustom interpolated grids - InterpolatedProcessor class  
+
+#### Supported weather stations sources
+
+☑️ [rp5](https://rp5.ru/%D0%9F%D0%BE%D0%B3%D0%BE%D0%B4%D0%B0_%D0%B2_%D0%BC%D0%B8%D1%80%D0%B5)
+☑️ [Roshydromet](http://meteo.ru/data/163-basic-parameters)
+
 ## Examples 
 * [ERA5 comparison with weather station (Roshydromet) example](https://github.com/ITMO-NSS-team/meteotik/blob/main/examples/ERA5_example.ipynb) 
 (in russian)
